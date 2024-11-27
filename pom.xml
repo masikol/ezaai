@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>EzAAI</groupId>
     <artifactId>EzAAI</artifactId>
-    <version>1.2.2</version>
+    <version>1.2.3_masikol.0.1</version>
 
     <dependencies>
         <dependency>
@@ -47,6 +47,29 @@
                         </manifest>
                     </archive>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <addClasspath>true</addClasspath>
+                                    <mainClass>leb.main.EzAAI</mainClass>
+                                </manifest>
+                            </archive>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

@@ -1,5 +1,16 @@
 package leb.main;
 
+// MY IMPORT
+import leb.process.PairwiseAAIThread;
+import leb.util.common.ParallelPairwiseAAIInDTO;
+import leb.util.common.ParallelPairwiseAAIResWrap;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+
+
 import leb.process.ProcCalcPairwiseAAI;
 import leb.process.ProcFuncAnnoByMMSeqs2;
 import leb.process.ProcUPGMA;
@@ -13,7 +24,6 @@ import leb.util.config.GenericConfig;
 import leb.util.seq.DnaSeqDomain;
 import leb.util.seq.Seqtools;
 import leb.util.seq.FastSeqLoader;
-
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -30,7 +40,7 @@ import org.apache.commons.io.FileUtils;
 import java.util.ArrayList;
 
 public class EzAAI {
-	public static final String VERSION  = "v1.2.3",
+	public static final String VERSION  = "v1.2.3_masikol.0.1",
 							   RELEASE  = "Feb. 2024",
 							   CITATION = " Kim, D., Park, S. & Chun, J.\n"
 							   			+ " Introducing EzAAI: a pipeline for high throughput calculations of prokaryotic average amino acid identity.\n"
@@ -481,41 +491,109 @@ public class EzAAI {
 			Integer[][] hitTable = new Integer[ilist.size()][jlist.size()];
 			Integer[] ilens = new Integer[ilist.size()], jlens = new Integer[jlist.size()];
 
+			// -- START MASIKOL CODE
+			List<PairwiseAAIThread> aaiWorkers = new ArrayList<>(thread);
+			AtomicInteger atomicJobCounter = new AtomicInteger(); 
+
 			int it = 0, sz = self ? (ilist.size() * (ilist.size() - 1) / 2) : (ilist.size() * jlist.size());
+			int workerId = 0, nJobsAssigned = 0;
+			int maxJobsPerWorker = sz / thread;
+			if (sz % thread != 0) {
+				maxJobsPerWorker++;
+			}
+			PairwiseAAIThread worker = new PairwiseAAIThread(
+				workerId,
+				path_mmseqs,
+				atomicJobCounter,
+				sz
+			);
 			for(int i = 0; i < ilist.size(); i++) {
 				for(int j = 0; j < jlist.size(); j++) {
 					if(self && i >= j) { continue; }
-					Prompt.print(String.format("Calculating AAI... [Task %d/%d]", ++it, sz));
-					ProcCalcPairwiseAAI procAAI = new ProcCalcPairwiseAAI();
-
-					switch(program) {
-					case PROGRAM_MMSEQS:
-						procAAI.setPath(path_mmseqs);
-						procAAI.setMode(ProcCalcPairwiseAAI.MODE_MMSEQS);
-						break;
-					case PROGRAM_DIAMOND:
-						procAAI.setPath(path_diamond);
-						procAAI.setMode(ProcCalcPairwiseAAI.MODE_DSENS);
-						break;
-					case PROGRAM_BLASTP:
-						procAAI.setPath(path_blastp);
-						procAAI.setDbpath(path_blastdb);
-						procAAI.setMode(ProcCalcPairwiseAAI.MODE_BLASTP);
-						break;
+					Prompt.talk(String.format("Assigning task [%d,%d] to worker #%d... [Task %d/%d]", i, j, workerId, ++it, sz));
+					if (nJobsAssigned >= maxJobsPerWorker) {
+						aaiWorkers.add(worker);
+						worker = new PairwiseAAIThread(
+							++workerId,
+							path_mmseqs,
+							atomicJobCounter,
+							sz
+						);
+						nJobsAssigned = 0;
 					}
-					procAAI.setGlobaltmp(tmp);
-					procAAI.setNthread(thread);
-					procAAI.setIdentity(identity);
-					procAAI.setCoverage(coverage);
-					if (maw != null) procAAI.setMatchout(maw);
-					List<String> res = procAAI.calculateProteomePairWithDetails(ilabs.get(i), jlabs.get(j), ilist.get(i), jlist.get(j));
-					hitTable[i][j] = Integer.parseInt(res.get(4));
-					aaiTable[i][j] = Double.parseDouble(res.get(6));
-					if(ilens[i] == null) ilens[i] = Integer.parseInt(res.get(0));
-					if(jlens[j] == null) jlens[j] = Integer.parseInt(res.get(1));
+					worker.addInputData(
+						new ParallelPairwiseAAIInDTO(
+							i, j,
+							ilabs.get(i), jlabs.get(j),
+							ilist.get(i), jlist.get(j)
+						)
+					);
+					nJobsAssigned++;
 				}
 			}
+			aaiWorkers.add(worker);
 			if(maw != null) maw.close();
+
+			ExecutorService executor = Executors.newFixedThreadPool(thread);
+			List<Future<List<ParallelPairwiseAAIResWrap>>> futures = new ArrayList<>();
+			for (PairwiseAAIThread aaiWorker : aaiWorkers) {
+				futures.add(executor.submit(aaiWorker));
+			}
+			executor.shutdown();
+
+			int resI, resJ;
+			List<String> res;
+			for(Future<List<ParallelPairwiseAAIResWrap>> future : futures) {
+				List<ParallelPairwiseAAIResWrap> resWrapList = future.get();
+				for (ParallelPairwiseAAIResWrap resWrap : resWrapList) {
+					resI = resWrap.i;
+					resJ = resWrap.j;
+					res = resWrap.res;
+					hitTable[resI][resJ] = Integer.parseInt(res.get(4));
+					aaiTable[resI][resJ] = Double.parseDouble(res.get(6));
+					if(ilens[resI] == null) ilens[resI] = Integer.parseInt(res.get(0));
+					if(jlens[resJ] == null) jlens[resJ] = Integer.parseInt(res.get(1));
+				}
+			}
+
+			// -- END MASIKOL CODE
+
+			// ORIGINAL CODE
+			// int it = 0, sz = self ? (ilist.size() * (ilist.size() - 1) / 2) : (ilist.size() * jlist.size());
+			// for(int i = 0; i < ilist.size(); i++) {
+			// 	for(int j = 0; j < jlist.size(); j++) {
+			// 		if(self && i >= j) { continue; }
+			// 		Prompt.print(String.format("Calculating AAI... [Task %d/%d]", ++it, sz));
+			// 		ProcCalcPairwiseAAI procAAI = new ProcCalcPairwiseAAI();
+
+			// 		switch(program) {
+			// 		case PROGRAM_MMSEQS:
+			// 			procAAI.setPath(path_mmseqs);
+			// 			procAAI.setMode(ProcCalcPairwiseAAI.MODE_MMSEQS);
+			// 			break;
+			// 		case PROGRAM_DIAMOND:
+			// 			procAAI.setPath(path_diamond);
+			// 			procAAI.setMode(ProcCalcPairwiseAAI.MODE_DSENS);
+			// 			break;
+			// 		case PROGRAM_BLASTP:
+			// 			procAAI.setPath(path_blastp);
+			// 			procAAI.setDbpath(path_blastdb);
+			// 			procAAI.setMode(ProcCalcPairwiseAAI.MODE_BLASTP);
+			// 			break;
+			// 		}
+			// 		procAAI.setGlobaltmp(tmp);
+			// 		procAAI.setNthread(thread);
+			// 		procAAI.setIdentity(identity);
+			// 		procAAI.setCoverage(coverage);
+			// 		if (maw != null) procAAI.setMatchout(maw);
+			// 		List<String> res = procAAI.calculateProteomePairWithDetails(ilabs.get(i), jlabs.get(j), ilist.get(i), jlist.get(j));
+			// 		hitTable[i][j] = Integer.parseInt(res.get(4));
+			// 		aaiTable[i][j] = Double.parseDouble(res.get(6));
+			// 		if(ilens[i] == null) ilens[i] = Integer.parseInt(res.get(0));
+			// 		if(jlens[j] == null) jlens[j] = Integer.parseInt(res.get(1));
+			// 	}
+			// }
+			// if(maw != null) maw.close();
 
 			// if self, fill the remaining cells
 			if(self) {

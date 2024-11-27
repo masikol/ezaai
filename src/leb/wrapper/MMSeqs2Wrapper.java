@@ -9,7 +9,7 @@ public class MMSeqs2Wrapper extends ExecHandler {
 	
 //	private Integer maxAccept = (1 << 16);
 //	public void setMaxAccept(Integer maxAccept) {this.maxAccept = maxAccept;}
-	private Integer threads = 72;
+	private Integer threads = 1;
 	public void setThreads(Integer threads) {this.threads = threads;}
 	private Integer alignmentMode = 2;
 	public void setAlignmentMode(Integer alignmentMode) {this.alignmentMode = alignmentMode;}
@@ -36,7 +36,7 @@ public class MMSeqs2Wrapper extends ExecHandler {
 		addArgument(tmpDir);
 		addArgument("--alignment-mode", alignmentMode);
 //		addArgument("--max-accept", maxAccept);
-		addArgument("--threads", threads);
+		addArgument("--threads", 1);
 		super.exec();
 	}
 	
@@ -46,7 +46,7 @@ public class MMSeqs2Wrapper extends ExecHandler {
 		addArgument(inDbName);
 		addArgument(outDbName);
 		addArgument("--extract-lines", 1);
-		addArgument("--threads", threads);
+		addArgument("--threads", 1);
 		super.exec();
 	}
 	
@@ -57,7 +57,7 @@ public class MMSeqs2Wrapper extends ExecHandler {
 		addArgument(inDbName2);
 		addArgument(inAlignName);
 		addArgument(outFileName);
-		addArgument("--threads", threads);
+		addArgument("--threads", 1);
 		super.exec();
 	}
 	

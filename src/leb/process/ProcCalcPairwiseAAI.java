@@ -31,6 +31,8 @@ public class ProcCalcPairwiseAAI {
 		MODE_DIAMOND	= 4,
 		MODE_DSENS		= 5;
 
+	private String workerIdStr;
+
 	private String globaltmp = "/tmp/ezaai";
 	public void setGlobaltmp(String globaltmp) {this.globaltmp = globaltmp;}
 	private int mode = MODE_DEFAULT;
@@ -43,7 +45,7 @@ public class ProcCalcPairwiseAAI {
 	private String dbpath = null; // makeblastdb
 	public void setDbpath(String dbpath) {this.dbpath = dbpath;}
 	public void setIdentity(double identity) {
-		this.identity = identity * 100;
+		this.identity = identity;
 	}
 	public void setCoverage(double coverage) {
 		this.coverage = coverage;
@@ -54,7 +56,9 @@ public class ProcCalcPairwiseAAI {
 	}
 	private String label1 = null, label2 = null;
 	
-	public ProcCalcPairwiseAAI() {}
+	public ProcCalcPairwiseAAI(int workerId) {
+		this.workerIdStr = String.valueOf(workerId);
+	}
 	
 	// returns [cds1, cds2, hit1, hit2, recHit, avglen, aai]
 	public List<String> calculateProteomePairWithDetails(String label1, String label2, String faa1, String faa2) throws IOException {
@@ -348,55 +352,76 @@ public class ProcCalcPairwiseAAI {
 		if(path == null) path = "mmseqs";
 		procMmseqs.setMmseqsPath(path);
 		
-		File mmout = new File(globaltmp + File.separator + GenericConfig.SESSION_UID + "_MM");
+		File mmout = new File(globaltmp + File.separator + GenericConfig.SESSION_UID + "_MM_" + workerIdStr);
 		if(!mmout.exists()) mmout.mkdir();
 		else if(!mmout.isDirectory()) {
 			Prompt.error("FATAL ERROR : MMSeqs2 output directory could not be created.");
 			return null;
 		}
 		String outDir = mmout.getAbsolutePath();
-		String tmpDir = globaltmp + File.separator + GenericConfig.SESSION_UID + "_tmp";
+		String tmpDir = globaltmp + File.separator + GenericConfig.SESSION_UID + "_tmp_" + workerIdStr;
 		
 		procMmseqs.setThreads(nthread);
 		procMmseqs.setAlignmentMode(3);
 		
-		procMmseqs.executeCreateDb(faa1, outDir + File.separator + "db1");
-		procMmseqs.executeCreateDb(faa2, outDir + File.separator + "db2");
+		procMmseqs.executeCreateDb(faa1, outDir + File.separator + "db1_" + workerIdStr);
+		procMmseqs.executeCreateDb(faa2, outDir + File.separator + "db2_" + workerIdStr);
 
 		Prompt.talk(String.format("Running MMSeqs2 search... (%s vs. %s)", faa1, faa2));
 		procMmseqs.executeSearch(
-				outDir + File.separator + "db1",
-				outDir + File.separator + "db2",
-				outDir + File.separator + "vice", tmpDir);
+			outDir + File.separator + "db1_" + workerIdStr,
+			outDir + File.separator + "db2_" + workerIdStr,
+			outDir + File.separator + "vice_" + workerIdStr,
+			tmpDir
+		);
 		procMmseqs.executeFilterdb(
-				outDir + File.separator + "vice",
-				outDir + File.separator + "vice_filt", tmpDir);
+			outDir + File.separator + "vice_" + workerIdStr,
+			outDir + File.separator + "vice_filt_" + workerIdStr,
+			tmpDir
+		);
 		procMmseqs.executeConvertAlis(
-				outDir + File.separator + "db1",
-				outDir + File.separator + "db2",
-				outDir + File.separator + "vice_filt",
-				outDir + File.separator + "vice.m8");
-		List<Blast6FormatHitDomain> hits_vice  = procMmseqs.parseOutFile(outDir + File.separator + "vice.m8");
+				outDir + File.separator + "db1_" + workerIdStr,
+				outDir + File.separator + "db2_" + workerIdStr,
+				outDir + File.separator + "vice_filt_" + workerIdStr,
+				outDir + File.separator + "vice.m8_" + workerIdStr);
+		List<Blast6FormatHitDomain> hits_vice  = procMmseqs.parseOutFile(
+			outDir + File.separator + "vice.m8_" + workerIdStr
+		);
 		
 		Prompt.talk(String.format("Running MMSeqs2 search... (%s vs. %s)", faa2, faa1));
 		procMmseqs.executeSearch(
-				outDir + File.separator + "db2",
-				outDir + File.separator + "db1",
-				outDir + File.separator + "versa", tmpDir);
+			outDir + File.separator + "db2_" + workerIdStr,
+			outDir + File.separator + "db1_" + workerIdStr,
+			outDir + File.separator + "versa_" + workerIdStr,
+			tmpDir
+		);
 		procMmseqs.executeFilterdb(
-				outDir + File.separator + "versa",
-				outDir + File.separator + "versa_filt", tmpDir);
+			outDir + File.separator + "versa_" + workerIdStr,
+			outDir + File.separator + "versa_filt_" + workerIdStr,
+			tmpDir
+		);
 		procMmseqs.executeConvertAlis(
-				outDir + File.separator + "db2",
-				outDir + File.separator + "db1",
-				outDir + File.separator + "versa_filt",
-				outDir + File.separator + "versa.m8");
-		List<Blast6FormatHitDomain> hits_versa = procMmseqs.parseOutFile(outDir + File.separator + "versa.m8");
+			outDir + File.separator + "db2_" + workerIdStr,
+			outDir + File.separator + "db1_" + workerIdStr,
+			outDir + File.separator + "versa_filt_" + workerIdStr,
+			outDir + File.separator + "versa.m8_" + workerIdStr
+		);
+		List<Blast6FormatHitDomain> hits_versa = procMmseqs.parseOutFile(
+			outDir + File.separator + "versa.m8_" + workerIdStr
+		);
 		
 		// Clean up stubs
 		if(!GenericConfig.KEEP) {
-			FileUtils.deleteDirectory(new File(globaltmp + File.separator + GenericConfig.SESSION_UID + "_MM"));
-			FileUtils.deleteDirectory(new File(globaltmp + File.separator + GenericConfig.SESSION_UID + "_tmp"));
+			FileUtils.deleteDirectory(
+				new File(
+					globaltmp + File.separator + GenericConfig.SESSION_UID + "_MM_" + workerIdStr
+				)
+			);
+			FileUtils.deleteDirectory(
+				new File(
+					globaltmp + File.separator + GenericConfig.SESSION_UID + "_tmp_" + workerIdStr
+				)
+			);
 		}
 		
 		// Collect pairs with reciprocal hits with id 40%+, q_cov 50%+
