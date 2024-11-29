@@ -1,16 +1,5 @@
 package leb.main;
 
-// MY IMPORT
-import leb.process.PairwiseAAIThread;
-import leb.util.common.ParallelPairwiseAAIInDTO;
-import leb.util.common.ParallelPairwiseAAIResWrap;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-
-
 import leb.process.ProcCalcPairwiseAAI;
 import leb.process.ProcFuncAnnoByMMSeqs2;
 import leb.process.ProcUPGMA;
@@ -24,6 +13,9 @@ import leb.util.config.GenericConfig;
 import leb.util.seq.DnaSeqDomain;
 import leb.util.seq.Seqtools;
 import leb.util.seq.FastSeqLoader;
+import leb.process.PairwiseAAIThread;
+import leb.util.common.ParallelPairwiseAAIInDTO;
+import leb.util.common.ParallelPairwiseAAIResWrap;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -34,6 +26,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.Map;
 import java.util.HashMap;
+import java.lang.Thread;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
 
@@ -41,7 +38,7 @@ import java.util.ArrayList;
 
 public class EzAAI {
 	public static final String VERSION  = "v1.2.3_masikol.0.1",
-							   RELEASE  = "Feb. 2024",
+							   RELEASE  = "Nov. 2024",
 							   CITATION = " Kim, D., Park, S. & Chun, J.\n"
 							   			+ " Introducing EzAAI: a pipeline for high throughput calculations of prokaryotic average amino acid identity.\n"
 							   			+ " J Microbiol. 59, 476–480 (2021).\n"
@@ -86,7 +83,7 @@ public class EzAAI {
 			path_ufasta   = "ufasta";
 	
 	String label = null; // convert, extract
-	String input2 = null, matchout = null, mtxout = null; int thread = 10; double identity = 0.4, coverage = 0.5; // calculate
+	String input2 = null, matchout = null, mtxout = null; int thread = 1; double identity = 0.4, coverage = 0.5; // calculate
 	boolean self = false; // calculate
 	int program = PROGRAM_MMSEQS; // calculate
 	boolean useid = false; // cluster
@@ -180,14 +177,15 @@ public class EzAAI {
 					case "mmseqs":
 						program = PROGRAM_MMSEQS;
 						break;
-					case "diamond":
-						program = PROGRAM_DIAMOND;
-						break;
-					case "blastp":
-						program = PROGRAM_BLASTP;
-						break;
+					// case "diamond":
+					// 	program = PROGRAM_DIAMOND;
+					// 	break;
+					// case "blastp":
+					// 	program = PROGRAM_BLASTP;
+					// 	break;
 					default:
 						Prompt.error("Invalid program given.");
+						printNotMmseqsErrorMessage();
 						return -1;
 				}
 			}
@@ -229,7 +227,13 @@ public class EzAAI {
 		
 		return 0;
 	}
-	
+
+	private void printNotMmseqsErrorMessage() {
+		Prompt.error(
+			"This forked version of EzAAI works with MMseqs2 only. "
+			+ "If you need other alignment programs, please use the original EzAAI: https://github.com/endixk/ezaai"
+		);
+	}
 	private boolean checkProgram(int program) {
 		boolean sane = true;
 		
@@ -380,7 +384,7 @@ public class EzAAI {
 			return -1;
 		}
 		
-		Prompt.print("Task finished.");
+		Prompt.print("Completed!");
 		return 0;
 	}
 	
@@ -534,9 +538,14 @@ public class EzAAI {
 			aaiWorkers.add(worker);
 			if(maw != null) maw.close();
 
+			Prompt.print(
+				String.format("Starting AAI calculation using %d threads", thread)
+			);
+
 			ExecutorService executor = Executors.newFixedThreadPool(thread);
 			List<Future<List<ParallelPairwiseAAIResWrap>>> futures = new ArrayList<>();
 			for (PairwiseAAIThread aaiWorker : aaiWorkers) {
+				Thread.sleep(500); // ms
 				futures.add(executor.submit(aaiWorker));
 			}
 			executor.shutdown();
@@ -641,7 +650,7 @@ public class EzAAI {
 			return -1;
 		}
 		
-		Prompt.print("Task finished.");
+		Prompt.print("Completed!");
 		return 0;
 	}
 
@@ -728,7 +737,7 @@ public class EzAAI {
 			return -1;
 		}
 		
-		Prompt.print("Task finished.");
+		Prompt.print("Completed!");
 		return 0;
 	}
 
@@ -736,7 +745,7 @@ public class EzAAI {
 		int ret;
 		if((ret = dbToFaa(input1, output)) == 0) {
 			(new File("mm.label")).delete();
-			Prompt.print("Task finished.");
+			Prompt.print("Completed!");
 		}
 		return ret;
 	}
@@ -890,7 +899,7 @@ public class EzAAI {
 			System.out.println(ANSIHandler.wrapper(" Calculate AAI value from protein databases", 'g'));
 			System.out.println();
 		
-			System.out.println(ANSIHandler.wrapper("\n USAGE:", 'Y') + " java -jar EzAAI.jar calculate -i <INPUT_1> -j <INPUT_2> -o <OUTPUT> [-p <PROGRAM> -t <THREAD> -id <IDENTITY> -cov <COVERAGE> -mtx <MTX_OUTPUT>]");
+			System.out.println(ANSIHandler.wrapper("\n USAGE:", 'Y') + " java -jar EzAAI.jar calculate -i <INPUT_1> -j <INPUT_2> -o <OUTPUT> [-t <THREAD> -id <IDENTITY> -cov <COVERAGE> -mtx <MTX_OUTPUT>]");
 			System.out.println();
 
 			String indent = String.valueOf(15);
@@ -903,18 +912,15 @@ public class EzAAI {
 			
 			System.out.println(ANSIHandler.wrapper("\n Additional options", 'y'));
 			System.out.println(ANSIHandler.wrapper(String.format(" %-"+indent+"s%s", "Argument", "Description"), 'c'));
-			System.out.printf(" %-"+indent+"s%s%n", "-p      ", "Customize calculation program [mmseqs / diamond / blastp] (default: mmseqs)");
-			System.out.printf(" %-"+indent+"s%s%n", "-t      ", "Number of CPU threads to use (default: 10)");
+			System.out.printf(" %-"+indent+"s%s%n", "-p      ", "[Disabled. mmseqs2 only] Customize calculation program [mmseqs / diamond / blastp] (default: mmseqs)");
+			System.out.printf(" %-"+indent+"s%s%n", "-t      ", "Number of CPU threads to use (default: 1)");
 			System.out.printf(" %-"+indent+"s%s%n", "-tmp    ", "Custom temporary directory (default: /tmp/ezaai)");
-			System.out.printf(" %-"+indent+"s%s%n", "-self   ", "Assume self-comparison; -i and -j must be identical [0 / 1] (default: 0)");
+			System.out.printf(" %-"+indent+"s%s%n", "-self   ", "For cartesian-product-like comparison, skip AAI calculation if i>=j [0 / 1] (default: 0)");
 			System.out.printf(" %-"+indent+"s%s%n", "-id     ", "Minimum identity threshold for AAI calculations [0 - 1.0] (default: 0.4)");
 			System.out.printf(" %-"+indent+"s%s%n", "-cov    ", "Minimum query coverage threshold for AAI calculations [0 - 1.0] (default: 0.5)");
-			System.out.printf(" %-"+indent+"s%s%n", "-match  ", "Path to write a result of matched CDS names");
+			System.out.printf(" %-"+indent+"s%s%n", "-match  ", "[Disabled] Path to write a result of matched CDS names");
 			System.out.printf(" %-"+indent+"s%s%n", "-mtx    ", "Path to write a Matrix Market formatted output");
 			System.out.printf(" %-"+indent+"s%s%n", "-mmseqs ", "Custom path to MMSeqs2 binary (default: mmseqs)");
-			System.out.printf(" %-"+indent+"s%s%n", "-diamond", "Custom path to DIAMOND binary (default: diamond)");
-			System.out.printf(" %-"+indent+"s%s%n", "-blastp ", "Custom path to BLASTp+ binary (default: blastp)");
-			System.out.printf(" %-"+indent+"s%s%n", "-blastdb", "Custom path to makeblastdb binary (default: makeblastdb)");
 			System.out.println();
 		}
 		if(module == MODULE_CLUSTER) {

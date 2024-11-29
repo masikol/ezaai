@@ -75,18 +75,12 @@ public class PairwiseAAIThread implements Callable<List<ParallelPairwiseAAIResWr
 		List<String> res;
 		List<ParallelPairwiseAAIResWrap> outDataList = new ArrayList<>();
 		for (ParallelPairwiseAAIInDTO inputData : inputDataList) {
-			Prompt.print(
-				String.format(
-					"Calculating AAI... [Worker #%d, Task %d/%d]",
-					workerId,
-					atomicJobCounter.get(),
-					sz
-				)
-			);
 			Prompt.talk(
 				String.format(
-					"Calculating AAI... [Worker #%d, i=%d, j=%d]",
+					"Calculating AAI... [Worker #%d, starting task %d/%d, i=%d,j=%d]",
 					workerId,
+					atomicJobCounter.get(),
+					sz,
 					inputData.i,
 					inputData.j
 				)
@@ -105,6 +99,14 @@ public class PairwiseAAIThread implements Callable<List<ParallelPairwiseAAIResWr
 			
 			outDataList.add(
 				new ParallelPairwiseAAIResWrap(inputData.i, inputData.j, res)
+			);
+			Prompt.print(
+				String.format(
+					"Task %d/%d done [Worker #%d]",
+					atomicJobCounter.incrementAndGet(),
+					sz,
+					workerId
+				)
 			);
 		}
 
