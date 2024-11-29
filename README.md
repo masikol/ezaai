@@ -18,7 +18,7 @@ Limitations of the masikol version:
 - `ezaai calculate` can use only mmseqs2 for sequence alignment. Blastp and diamond are disabled.
 - Option `-match` is disabled in `ezaai calculate`.
 
-See [masikol version instaltion](#masikol-version-installation) and an [example](#masikol-version-example) below.
+See [masikol version installation](#masikol-version-installation) and an [example](#masikol-version-example) below.
 
 ## Quick start with conda
 
