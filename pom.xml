@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>EzAAI</groupId>
     <artifactId>EzAAI</artifactId>
-    <version>1.2.3_masikol.0.1</version>
+    <version>1.2.3_masikol.0.2</version>
 
     <dependencies>
         <dependency>

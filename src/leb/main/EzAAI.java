@@ -37,7 +37,7 @@ import org.apache.commons.io.FileUtils;
 import java.util.ArrayList;
 
 public class EzAAI {
-	public static final String VERSION  = "v1.2.3_masikol.0.1",
+	public static final String VERSION  = "v1.2.3_masikol.0.2",
 							   RELEASE  = "Nov. 2024",
 							   CITATION = " Kim, D., Park, S. & Chun, J.\n"
 							   			+ " Introducing EzAAI: a pipeline for high throughput calculations of prokaryotic average amino acid identity.\n"
@@ -511,6 +511,7 @@ public class EzAAI {
 				atomicJobCounter,
 				sz
 			);
+			worker.setGlobaltmp(this.tmp);
 			for(int i = 0; i < ilist.size(); i++) {
 				for(int j = 0; j < jlist.size(); j++) {
 					if(self && i >= j) { continue; }
@@ -523,6 +524,7 @@ public class EzAAI {
 							atomicJobCounter,
 							sz
 						);
+						worker.setGlobaltmp(this.tmp);
 						nJobsAssigned = 0;
 					}
 					worker.addInputData(
