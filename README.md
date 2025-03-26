@@ -11,7 +11,7 @@ EzAAI is a suite of workflows for improved AAI calculation performance along wit
 
 I forked the [original EzAAI](https://github.com/endixk/ezaai) `v1.2.3` in order to change `mmseqs2` parallelization strategy in `ezaai calculate`. The original EzAAI processes all genome pairs consecutively, and multiprocessing is implemented as passing a `-t` argument to `mmseqs2`. Unfortunately, this strategy doesn’t speed up calculation much.
 
-My version, `v1.2.3_masikol_0.1`, can spawn multiple parallel `mmseqs2` processes so that multiple genome pairs can be compared simultaneously. Each spawned `mmseqs2` runs using single thread. As in the original EzAAI, one specifies the number of threads using `-t` option of the program `ezaai calculate`.
+My version, `v1.2.3_masikol_0.2`, can spawn multiple parallel `mmseqs2` processes so that multiple genome pairs can be compared simultaneously. Each spawned `mmseqs2` runs using single thread. As in the original EzAAI, one specifies the number of threads using `-t` option of the program `ezaai calculate`.
 
 Limitations of the masikol version:
 
@@ -91,9 +91,9 @@ ezaai cluster -i <AAI_TABLE> -o <OUTPUT>
 
 2. Go to the `ezaai` directory.
 
-3. Build an executable jar with Maven: `mvn clean package`. This will produce a `target/` directory with the desired jar in it: `EzAAI-1.2.3_masikol.0.1-jar-with-dependencies.jar`.
+3. Build an executable jar with Maven: `mvn clean package`. This will produce a `target/` directory with the desired jar in it: `EzAAI-1.2.3_masikol.0.2-jar-with-dependencies.jar`.
 
-4. Execute `ezaai calculate` as follows: `java -jar target/EzAAI-1.2.3_masikol.0.1-jar-with-dependencies.jar calculate [...]`
+4. Execute `ezaai calculate` as follows: `java -jar target/EzAAI-1.2.3_masikol.0.2-jar-with-dependencies.jar calculate [...]`
 
 ## Masikol version example
 
@@ -105,7 +105,7 @@ conda activate ezaai
 Then run `ezaai calculate` as follows:
 
 ```bash
-java -jar target/EzAAI-1.2.3_masikol.0.1-jar-with-dependencies.jar calculate \
+java -jar target/EzAAI-1.2.3_masikol.0.2-jar-with-dependencies.jar calculate \
     -i Bacillaceae_genomes/ezaai-db \
     -j Bacillaceae_genomes/ezaai-db \
     -t 72 \
